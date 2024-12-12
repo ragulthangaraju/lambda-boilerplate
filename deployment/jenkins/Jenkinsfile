@@ -1,0 +1,20 @@
+pipeline {
+    agent any
+    stages {
+        stage('Build') {
+            steps {
+                script {
+                    sh 'npm install --prefix lambda-auth'
+                    sh 'zip -j lambda.zip lambda-auth/*'
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                script {
+                    sh 'cd deployment/terraform && terraform init && terraform apply -auto-approve'
+                }
+            }
+        }
+    }
+}
