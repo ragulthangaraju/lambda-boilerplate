@@ -1,20 +1,35 @@
 pipeline {
     agent any
+    environment {
+            AWS_ACCESS_KEY_ID = credentials('aws-access-key-id')
+            AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
+        }
     stages {
-        stage('Build') {
+        stage('Initialize') {
             steps {
                 script {
-                    sh 'npm install --prefix lambda-auth'
-                    sh 'zip -j lambda.zip lambda-auth/*'
+                    sh 'terraform init'
                 }
             }
         }
-        stage('Deploy') {
+        stage('Validate') {
             steps {
                 script {
-                    sh 'cd deployment/terraform && terraform init && terraform apply -auto-approve'
+                    sh 'terraform validate'
                 }
             }
+        }
+        stage('Apply') {
+            steps {
+                script {
+                    sh 'terraform apply -auto-approve'
+                }
+            }
+        }
+    }
+    post {
+        always {
+            cleanWs()
         }
     }
 }

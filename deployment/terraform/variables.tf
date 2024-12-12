@@ -1,7 +1,4 @@
-variable "lambda_name" {
-  default = "nodejs-lambda"
-}
-
-variable "api_name" {
-  default = "lambda-api"
+variable "region" {
+  description = "AWS Region"
+  default     = "ap-south-1"
 }
