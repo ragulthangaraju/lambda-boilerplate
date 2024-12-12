@@ -1,48 +1,60 @@
-String applicationName = 'jenkins-boilerplate'
-String localFolderName = 'lambda-auth'
-String lambdaName = 'lambda-auth'
-String bundleFileName = "target/${lambdaName}.zip"
-String gitCredentialId = 'GITHUB-PRIVATE-KEY'
-String s3BucketName = 'code-deployments'
-String s3ObjectName
-
 pipeline {
-  agent { label 'slave1' }
+  agent any
+
+  environment {
+    S3_BUCKET = 'your-s3-bucket-name'
+    LAMBDA_NAME = 'your-lambda-name'
+    AWS_REGION = 'ap-south-1'
+    DEPLOY_PACKAGE = 'build/package.zip'
+  }
 
   stages {
-    stage('Install') {
+    stage('Install Dependencies') {
       steps {
-        dir(localFolderName) {
-          withCredentials([sshUserPrivateKey(credentialsId: gitCredentialId, keyFileVariable: 'SSH_KEY')]) {
-            sh "GIT_SSH_COMMAND=\"ssh -i \\\"$SSH_KEY\\\"\" npm ci"
-          }
+        script {
+          sh 'npm install'
         }
       }
     }
 
-    stage('Test') {
+    stage('Run Tests') {
       steps {
-        echo "Run test"
+        script {
+          sh 'npm test'
+        }
       }
     }
 
     stage('Build') {
       steps {
-        dir(localFolderName) { sh 'npm run build' }
+        script {
+          sh 'npm run build'
+          sh 'zip -r ${DEPLOY_PACKAGE} .'
+        }
       }
     }
 
-
-    stage('Deploy - Publish to S3') {
+    stage('Deploy to S3') {
       steps {
-        dir(localFolderName) {
-          script {
-            version = sh(script: "echo -n v\$(date +%y%m%d%H%M%S)", returnStdout: true).trim()
-            s3ObjectName = "${applicationName}/${lambdaName}/${version}.zip"
-          }
-          withAWS(region: 'us-east-1', credentials: 'aws-deployment-dev') {
-            s3Upload(file: bundleFileName, bucket: s3BucketName, path: s3ObjectName)
-          }
+        withAWS(region: "${AWS_REGION}", credentials: 'aws-credentials-id') {
+          s3Upload(
+            file: DEPLOY_PACKAGE,
+            bucket: "${S3_BUCKET}",
+            path: "${LAMBDA_NAME}/${env.BUILD_NUMBER}.zip"
+          )
+        }
+      }
+    }
+
+    stage('Update Lambda Function') {
+      steps {
+        withAWS(region: "${AWS_REGION}", credentials: 'aws-credentials-id') {
+          sh """
+          aws lambda update-function-code \
+            --function-name ${LAMBDA_NAME} \
+            --s3-bucket ${S3_BUCKET} \
+            --s3-key ${LAMBDA_NAME}/${env.BUILD_NUMBER}.zip
+          """
         }
       }
     }
