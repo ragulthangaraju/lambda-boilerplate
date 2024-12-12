@@ -9,7 +9,7 @@ pipeline {
   }
 
   stages {
-  agent any
+    agent any
     stage('Install Dependencies') {
       steps {
         script {
