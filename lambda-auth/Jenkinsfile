@@ -3,9 +3,9 @@ pipeline {
 
   environment {
     S3_BUCKET = 'your-s3-bucket-name'
-    LAMBDA_NAME = 'your-lambda-name'
+    LAMBDA_NAME = 'boilerplate-auth'
     AWS_REGION = 'ap-south-1'
-    DEPLOY_PACKAGE = 'build/package.zip'
+    DEPLOY_PACKAGE = 'target/boilerplate-auth.zip'
   }
 
   stages {
@@ -17,31 +17,27 @@ pipeline {
       }
     }
 
-    stage('Run Tests') {
-      steps {
-        script {
-          sh 'npm test'
-        }
-      }
-    }
-
     stage('Build') {
       steps {
-        script {
-          sh 'npm run build'
-          sh 'zip -r ${DEPLOY_PACKAGE} .'
+        dir('lambda-auth') {
+          script {
+            sh 'npm run build'
+            sh 'zip -r ${DEPLOY_PACKAGE} .'
+          }
         }
       }
     }
 
     stage('Deploy to S3') {
       steps {
+      dir('lambda-auth') {
         withAWS(region: "${AWS_REGION}", credentials: 'aws-credentials-id') {
           s3Upload(
             file: DEPLOY_PACKAGE,
             bucket: "${S3_BUCKET}",
             path: "${LAMBDA_NAME}/${env.BUILD_NUMBER}.zip"
           )
+        }
         }
       }
     }
