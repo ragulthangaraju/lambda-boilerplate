@@ -7,9 +7,6 @@ String s3BucketName = 'code-deployments'
 String s3ObjectName
 
 pipeline {
-  agent { label 'slave1' }
-  tools { nodejs '18.14.2' }
-
   stages {
     stage('Install') {
       steps {
