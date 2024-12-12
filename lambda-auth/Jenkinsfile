@@ -11,7 +11,7 @@ pipeline {
   stages {
     stage('Install Dependencies') {
       steps {
-        script {
+        dir('lambda-auth') {
           sh 'npm install'
         }
       }
