@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "us-east-1"  # Adjust as needed
+  region = "ap-south-1"  # Adjust as needed
 }
 
 resource "aws_lambda_function" "lambda_auth" {
