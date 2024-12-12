@@ -1,35 +1,51 @@
+String applicationName = 'jenkins-boilerplate'
+String localFolderName = 'lambda-auth'
+String lambdaName = 'lambda-auth'
+String bundleFileName = "target/${lambdaName}.zip"
+String gitCredentialId = 'GITHUB-PRIVATE-KEY'
+String s3BucketName = 'code-deployments'
+String s3ObjectName
+
 pipeline {
-    agent any
-    environment {
-            AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
-            AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
+  agent { label 'slave1' }
+  tools { nodejs '18.14.2' }
+
+  stages {
+    stage('Install') {
+      steps {
+        dir(localFolderName) {
+          withCredentials([sshUserPrivateKey(credentialsId: gitCredentialId, keyFileVariable: 'SSH_KEY')]) {
+            sh "GIT_SSH_COMMAND=\"ssh -i \\\"$SSH_KEY\\\"\" npm ci"
+          }
         }
-    stages {
-        stage('Initialize') {
-            steps {
-                script {
-                    sh 'terraform init'
-                }
-            }
-        }
-        stage('Validate') {
-            steps {
-                script {
-                    sh 'terraform validate'
-                }
-            }
-        }
-        stage('Apply') {
-            steps {
-                script {
-                    sh 'terraform apply -auto-approve'
-                }
-            }
-        }
+      }
     }
-    post {
-        always {
-            cleanWs()
-        }
+
+    stage('Test') {
+      steps {
+        echo "Run test"
+      }
     }
+
+    stage('Build') {
+      steps {
+        dir(localFolderName) { sh 'npm run build' }
+      }
+    }
+
+
+    stage('Deploy - Publish to S3') {
+      steps {
+        dir(localFolderName) {
+          script {
+            version = sh(script: "echo -n v\$(date +%y%m%d%H%M%S)", returnStdout: true).trim()
+            s3ObjectName = "${applicationName}/${lambdaName}/${version}.zip"
+          }
+          withAWS(region: 'us-east-1', credentials: 'aws-deployment-dev') {
+            s3Upload(file: bundleFileName, bucket: s3BucketName, path: s3ObjectName)
+          }
+        }
+      }
+    }
+  }
 }
